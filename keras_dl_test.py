@@ -97,3 +97,26 @@ visualize(bp_model_tf, X_tr, y_tr,
           colors=['red', 'blue', 'green'],
           xlabel='petal length',
           ylabel='petal width')
+
+
+#  함수형 모델 정의
+
+inputs = keras.Input(shape=(nDim))
+h = layers.Dense(4, activation='sigmoid')(inputs)
+y = layers.Dense(nClasses, activation='softmax')(h)
+bp_model_tf = keras.Model(inputs, y)
+
+
+# 서브클래싱 모델 정의
+class BP_iris(keras.Model):
+    def __init__(self):
+        super(BP_iris, self).__init__()
+        self.h_layer = layers.Dense(4, activation='sigmoid')
+        self.o_layer = layers.Dense(nClasses, activation='softmax')
+
+
+    def call(self, x):
+        x = self.h_layer(x)
+        return self.o_layer(x)
+
+bp_model_tf = BP_iris()
