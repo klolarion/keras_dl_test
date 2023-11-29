@@ -82,14 +82,13 @@ bp_model_tf.compile(optimizer=optimizers.SGD(0.1, momentum=0.9),
 # 모델 학습
 bp_model_tf.fit(X_tr, y_tr, batch_size=15, epochs=200, verbose=2, validation_data=(X_val, y_val))
 
-
 # 훈련된 모델을 이용한 분류
 y_hat = bp_model_tf.predict(X_val, verbose=0)
 y_hat_lbls = np.array([np.argmax(y_hat[k]) for k in range(len(X_val))])
 nCorrect = (y_hat_lbls == y_val).sum()
 print('Validation accuracy: {}/{} --> {:7.3f}%'.format(nCorrect, len(X_val), nCorrect * 100.0 / len(X_val)))
 
-
+#  시각화
 visualize(bp_model_tf, X_tr, y_tr,
           multi_class=True,
           class_id=labels,
@@ -97,7 +96,6 @@ visualize(bp_model_tf, X_tr, y_tr,
           colors=['red', 'blue', 'green'],
           xlabel='petal length',
           ylabel='petal width')
-
 
 #  함수형 모델 정의
 
@@ -114,9 +112,48 @@ class BP_iris(keras.Model):
         self.h_layer = layers.Dense(4, activation='sigmoid')
         self.o_layer = layers.Dense(nClasses, activation='softmax')
 
-
     def call(self, x):
         x = self.h_layer(x)
         return self.o_layer(x)
 
+
 bp_model_tf = BP_iris()
+
+
+## 동적학습
+
+#  계단형 감쇠 스케줄러 - epoch구간별 학습률 적용
+boundaries = [700, 900]
+values = [0.1, 0.05, 0.01]
+lr_fn = keras.optimizers.schedules.PiecewiseConstantDecay(boundaries, values)
+bp_model_tf.compile(optimizer=optimizers.SGD(lr_fn, momentum=0.9),
+                    loss=losses.SparseCategoricalCrossentropy(),
+                    metrics=['accuracy'])
+
+
+#  지수함수 감쇠 스케줄러 - 초깃값으로부터 지수함수 형태로 감쇠하는 학습률 적용
+lr_fn = keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate=0.1,  # 초기 학습률
+    decay_steps=500,  # 변화량적용 epoch횟수
+    decay_rate=0.5,  # 변화량   ex) epoch500 -> 0.1 * 0.5 == 0.05 / epoch1000 -> 0.05 * 0.5 = 0.025
+    staircase=False)  # True면 정수나눗셈으로 처리
+
+
+# 다항식 감쇠 스케줄러 - 반복횟수에따라 다항식 함수에 의해 감쇠
+lr_fn = keras.optimizers.schedules.PolynomialDecay(
+    initial_learning_rate=0.1,
+    decay_steps=900,
+    end_learning_rate=0.01,
+    power=0.5)
+
+# 임의 스케줄러 클래스
+class MyExopnentialDecay(keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, initial_lr, decay_steps, decay_rate):
+        self.initial_lr = initial_lr
+        self.d_s = decay_steps
+        self.d_r = decay_rate
+
+    def __call__(self, step):
+        return self.initial_lr * self.d_r ** (step / self.d_s)
+
+lr_fn = MyExopnentialDecay(0.1, 900, 0.5)
