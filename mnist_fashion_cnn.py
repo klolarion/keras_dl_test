@@ -79,4 +79,3 @@ def evaluation_model(model):
 
 evaluation_model(model)
 
-
